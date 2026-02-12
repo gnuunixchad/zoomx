@@ -1,31 +1,15 @@
-# ZoomX
-
-A simple and lightweight tool for zooming in and panning around on an X display.
-
-Inspired by ZoomIt for Windows.
+# My fork of [ZoomX](https://github.com/nprezant/zoomx) - simple zooming tool for X
 
 ## Usage
 
-Launchable from the command line with `zoomx`, but recommended to bind it to a hotkey within your window manager.
+| | |
+|:---|:---|
+| movement | <kbd>h</kbd> <kbd>j</kbd> <kbd>k</kbd> <kbd>l</kbd> |
+| zoom in | <kbd>i</kbd> |
+| zoom out  | <kbd>o</kbd> |
+| quit | <kbd>Esc</kbd> <kbd>q</kbd> |
 
-Configuration with i3:
-
-```shell
-# ~/.config/i3/config
-bindsym $mod+Shift+z exec zoomx
-```
-
-## Installation
-
-Install through the [Arch Linux AUR](https://aur.archlinux.org/packages/zoomx/)
-
-Alternatively, it's just one file so feel free to build it on your own.
-
-## Building from source
-
-Build from source with gcc
-
-```shell
-gcc -g zoomx.c -L/usr/X11R6/lib -lX11 -o zoomx
-./zoomx
+## Build
+```sh
+make install
 ```
