@@ -1,7 +1,13 @@
 # My fork of [ZoomX](https://github.com/nprezant/zoomx) - simple zooming tool for X
+## What's the difference?
+- Add `Makefile`
+- Add `config.h`
+- Change default keybindings to vi binidngs
 
 ## Usage
-default bindings
+Create keybindings for zoomx in your window managers.
+
+## default bindings
 | | |
 |:---|:---|
 | movement | <kbd>h</kbd> <kbd>j</kbd> <kbd>k</kbd> <kbd>l</kbd> |
@@ -15,5 +21,8 @@ manner as any [suckless](https://suckless.org) software.
 
 ## Build
 ```sh
+# install
 make install
+# uninstall
+make uninstall
 ```
