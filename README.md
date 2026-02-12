@@ -1,4 +1,4 @@
-# My fork of [ZoomX](https://github.com/nprezant/zoomx) - simple zooming tool for X
+# <img src="./misc/zoomx-repo.png" width="24"/> My fork of [ZoomX](https://github.com/nprezant/zoomx) - simple zooming tool for X
 ![demo](./misc/zoomx.gif)
 
 ## What's the difference?
