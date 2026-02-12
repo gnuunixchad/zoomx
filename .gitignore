@@ -1,10 +1,2 @@
-# Binary built file
+config.h
 zoomx
-
-# Packaging artifacts
-pkg/
-src/
-*.zst
-
-# IDE
-.vscode/
