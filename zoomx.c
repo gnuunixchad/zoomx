@@ -4,17 +4,13 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-
-/* Compile with
- * gcc -g zoomx.c -L/usr/X11R6/lib -lX11 -o zoomx
- * ./zoomx
- */
+#include "config.h"
 
 XImage* ScaleXImage(XImage* originalImage, double scale, Display* display, Visual* visual, int depth)
 {
    double scaleWidth = scale;
    double scaleHeight = scale;
-   
+
    double w2 = originalImage->width * scale;
    double h2 = originalImage->height * scale;
 
@@ -75,7 +71,7 @@ struct ViewLocation GetMouseLocation(Display* display, Window window)
    int childX;
    int childY;
    unsigned int mask;
-   Bool pointerOnWindow = XQueryPointer(display, window, &rootWindow, &childWindow, &rootX, &rootY, &childX, &childY, &mask);
+   XQueryPointer(display, window, &rootWindow, &childWindow, &rootX, &rootY, &childX, &childY, &mask);
 
    struct ViewLocation viewLocation = { .Top = rootY, .Left = rootX };
    return viewLocation;
@@ -130,6 +126,7 @@ void PutXImageWithinBounds(Display* display, Window window, GC graphicsContext, 
    /* Too far to the left if the right side of the image is encroaching on the edge of the window. 
     * Positive means the right side of the image is safely off to the right and out of sight.
     * Negtive means the right side of the image is on window, so we'll correct for that. */
+
    int rightEncroachment = (image->width - viewLocation->Left) - windowWidth;
    if (rightEncroachment < 0)
       viewLocation->Left += rightEncroachment;
@@ -160,13 +157,13 @@ int main(void)
       exit(1);
    }
 
-   /* Read settings (or command line arguments...?) */
-   Bool startFullscreen = True;
-   Bool centerOnMouse = False;
-   double defaultScaleFactor = 2.0;
-   double maxScaleFactor = 5.0;
-   double scaleFactorIncrement = 1.0;
-   int panIncrement = 100;
+   /* Read config.h */
+   Bool startFullscreen = START_FULLSCREEN;
+   Bool centerOnMouse = CENTER_ON_MOUSE;
+   double defaultScaleFactor = DEFAULT_SCALE_FACTOR;
+   double maxScaleFactor = MAX_SCALE_FACTOR;
+   double scaleFactorIncrement = SCALE_FACTOR_INCREMENT;
+   int panIncrement = PAN_INCREMENT;
 
    /* Get the screen and compute its dimensions */
    int screen = DefaultScreen(display);
@@ -180,13 +177,11 @@ int main(void)
    int depth = DefaultDepth(display, screen);
 
    /* Get an image of the current the full screen. */
-   XImage* screenshot = NULL;
-   screenshot = XGetImage(display, rootWindow, 0, 0, screenWidth, screenHeight, AllPlanes, ZPixmap);
+   XImage* screenshot = XGetImage(display, rootWindow, 0, 0, screenWidth, screenHeight, AllPlanes, ZPixmap);
 
    /* Scale the image by two for initial display */
    double currentScaleFactor = defaultScaleFactor;
-   XImage* scaledImage = NULL;
-   scaledImage = ScaleXImage(screenshot, currentScaleFactor, display, visual, depth);
+   XImage* scaledImage = ScaleXImage(screenshot, currentScaleFactor, display, visual, depth);
 
    /* Create the window to look at and subscribe to events */
    long blackPixel = BlackPixel(display, screen);
@@ -218,97 +213,92 @@ int main(void)
       {
          PutXImageWithinBounds(display, window, graphicsContext, scaledImage, &viewLocation);
       }
-
       if (e.type == KeyPress)
       {
          /* Get a comparable symbol for the pressed key. */
          char buf[128] = {0};
          KeySym keysym;
-         int len = XLookupString(&e.xkey, buf, sizeof buf, &keysym, NULL);
+         XLookupString(&e.xkey, buf, sizeof buf, &keysym, NULL);
 
          /* Modify panning increment based on modifer keys */
          int modifiedPanIncrement = panIncrement;
          if (e.xkey.state & ShiftMask)
             modifiedPanIncrement *= 4;
 
-         /* Exit program for Escape key or q key*/
-         if (keysym == XK_Escape || keysym == XK_q)
-            break;
-
-         /* Check for zoom in */
-         else if (keysym == XK_i)
+         for (unsigned int i = 0; i < NUM_KEYBINDINGS; i++)
          {
-            int lastScaleFactor = currentScaleFactor;
-            currentScaleFactor += scaleFactorIncrement;
-            if (currentScaleFactor > maxScaleFactor)
-               currentScaleFactor = maxScaleFactor;
-
-            if (currentScaleFactor != lastScaleFactor)
+            if (keysym == keybindings[i].keysym)
             {
-               XDestroyImage(scaledImage);
-               scaledImage = NULL;
-               scaledImage = ScaleXImage(screenshot, currentScaleFactor, display, visual, depth);
-               CenterView(display, window, screenWidth, screenHeight, currentScaleFactor, lastScaleFactor, centerOnMouse, &viewLocation);
-               PutXImageWithinBounds(display, window, graphicsContext, scaledImage, &viewLocation);
+               switch (keybindings[i].action)
+               {
+                  case ACTION_QUIT:
+                     goto cleanup;
+
+                  case ACTION_ZOOM_IN:
+                  {
+                     double lastScaleFactor = currentScaleFactor;
+                     currentScaleFactor += scaleFactorIncrement;
+                     if (currentScaleFactor > maxScaleFactor)
+                        currentScaleFactor = maxScaleFactor;
+
+                     if (currentScaleFactor != lastScaleFactor)
+                     {
+                        XDestroyImage(scaledImage);
+                        scaledImage = ScaleXImage(screenshot, currentScaleFactor, display, visual, depth);
+                        CenterView(display, window, screenWidth, screenHeight, currentScaleFactor, lastScaleFactor, centerOnMouse, &viewLocation);
+                        PutXImageWithinBounds(display, window, graphicsContext, scaledImage, &viewLocation);
+                     }
+                     break;
+                  }
+
+                  case ACTION_ZOOM_OUT:
+                  {
+                     double lastScaleFactor = currentScaleFactor;
+                     currentScaleFactor -= scaleFactorIncrement;
+                     if (currentScaleFactor < 1.0)
+                        currentScaleFactor = 1.0;
+
+                     if (currentScaleFactor != lastScaleFactor)
+                     {
+                        XDestroyImage(scaledImage);
+                        scaledImage = ScaleXImage(screenshot, currentScaleFactor, display, visual, depth);
+                        CenterView(display, window, screenWidth, screenHeight, currentScaleFactor, lastScaleFactor, centerOnMouse, &viewLocation);
+                        PutXImageWithinBounds(display, window, graphicsContext, scaledImage, &viewLocation);
+                     }
+                     break;
+                  }
+                  case ACTION_PAN_RIGHT:
+                     viewLocation.Left += modifiedPanIncrement;
+                     PutXImageWithinBounds(display, window, graphicsContext, scaledImage, &viewLocation);
+                     break;
+                  case ACTION_PAN_LEFT:
+                     viewLocation.Left -= modifiedPanIncrement;
+                     PutXImageWithinBounds(display, window, graphicsContext, scaledImage, &viewLocation);
+                     break;
+                  case ACTION_PAN_UP:
+                     viewLocation.Top -= modifiedPanIncrement;
+                     PutXImageWithinBounds(display, window, graphicsContext, scaledImage, &viewLocation);
+                     break;
+                  case ACTION_PAN_DOWN:
+                     viewLocation.Top += modifiedPanIncrement;
+                     PutXImageWithinBounds(display, window, graphicsContext, scaledImage, &viewLocation);
+                     break;
+                  default:
+                     break;
+               }
+               break;
             }
-         }
-
-         /* Check for zoom out. Scale cannot be less than 1.0 */
-         else if (keysym == XK_o )
-         {
-            int lastScaleFactor = currentScaleFactor;
-            currentScaleFactor -= scaleFactorIncrement;
-            if (currentScaleFactor < 1.0)
-               currentScaleFactor = 1.0;
-
-            if (currentScaleFactor != lastScaleFactor)
-            {
-               XDestroyImage(scaledImage);
-               scaledImage = NULL;
-               scaledImage = ScaleXImage(screenshot, currentScaleFactor, display, visual, depth);
-               CenterView(display, window, screenWidth, screenHeight, currentScaleFactor, lastScaleFactor, centerOnMouse, &viewLocation);
-               PutXImageWithinBounds(display, window, graphicsContext, scaledImage, &viewLocation);
-            }
-         }
-
-         /* Move view with vim keys */
-         else if (keysym == XK_l )
-         {
-            viewLocation.Left += modifiedPanIncrement;
-            PutXImageWithinBounds(display, window, graphicsContext, scaledImage, &viewLocation);
-         }
-         else if (keysym == XK_h )
-         {
-            viewLocation.Left -= modifiedPanIncrement;
-            PutXImageWithinBounds(display, window, graphicsContext, scaledImage, &viewLocation);
-         }
-         else if (keysym == XK_k )
-         {
-            viewLocation.Top -= modifiedPanIncrement;
-            PutXImageWithinBounds(display, window, graphicsContext, scaledImage, &viewLocation);
-         }
-         else if (keysym == XK_j )
-         {
-            viewLocation.Top += modifiedPanIncrement;
-            PutXImageWithinBounds(display, window, graphicsContext, scaledImage, &viewLocation);
          }
       }
    }
 
-   /* Clean up and exit */
+cleanup:
    if (screenshot != NULL)
-   {
       XDestroyImage(screenshot);
-      screenshot = NULL;
-   }
 
    if (scaledImage != NULL)
-   {
       XDestroyImage(scaledImage);
-      scaledImage = NULL;
-   }
 
    XCloseDisplay(display);
-   display = NULL;
    return 0;
 }
