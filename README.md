@@ -1,4 +1,6 @@
 # My fork of [ZoomX](https://github.com/nprezant/zoomx) - simple zooming tool for X
+![demo](./misc/zoomx.gif)
+
 ## What's the difference?
 - Add `Makefile`
 - Add `config.h`
